@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Keamanan Deteksi Wajah</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            color: #fff;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.8s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #fff, #f0f0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .subtitle {
+            font-size: 1.1em;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .video-section {
+            animation: fadeIn 1s ease-out 0.3s both;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .video-frame {
+            position: relative;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .video-frame:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+        
+        .video-placeholder {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(45deg, #333, #555);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5em;
+            border-radius: 18px;
+        }
+        
+        .status-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #28a745;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .detection-overlay {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 15px;
+            font-size: 0.9em;
+            backdrop-filter: blur(10px);
+        }
+        
+        .realtime-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            animation: fadeIn 1s ease-out 0.6s both;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card h2 {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border-left: 4px solid #007bff;
+        }
+        
+        .stat-card.unknown {
+            border-left-color: #dc3545;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #007bff;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card.unknown .stat-number {
+            color: #dc3545;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .alert-panel {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+            animation: alertBlink 0.5s ease-in-out;
+        }
+        
+        .alert-panel.active {
+            display: block;
+        }
+        
+        @keyframes alertBlink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .alert-text {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alert-time {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .unknown-faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin-top: 15px;
+        }
+        
+        .unknown-face {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #dc3545;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .unknown-face:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .unknown-face img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .unknown-face .timestamp {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            font-size: 0.7em;
+            padding: 2px 5px;
+            text-align: center;
+        }
+        
+        .activity-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 15px;
+        }
+        
+        .log-entry {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: white;
+            border-radius: 10px;
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+        
+        .log-entry.unknown {
+            border-left-color: #dc3545;
+        }
+        
+        .log-entry.saved {
+            border-left-color: #ffc107;
+        }
+        
+        .log-entry:hover {
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .log-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #28a745;
+            color: white;
+            font-size: 1.2em;
+        }
+        
+        .log-entry.unknown .log-icon {
+            background: #dc3545;
+        }
+        
+        .log-entry.saved .log-icon {
+            background: #ffc107;
+        }
+        
+        .log-content {
+            flex: 1;
+        }
+        
+        .log-text {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+        
+        .log-time {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            font-size: 1em;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transition: all 0.5s ease;
+            transform: translate(-50%, -50%);
+        }
+        
+        .btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            box-shadow: 0 6px 15px rgba(0, 123, 255, 0.3);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white;
+            box-shadow: 0 6px 15px rgba(40, 167, 69, 0.3);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+            color: white;
+            box-shadow: 0 6px 15px rgba(220, 53, 69, 0.3);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: white;
+            box-shadow: 0 6px 15px rgba(255, 193, 7, 0.3);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .auto-save-status {
+            background: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+            color: #155724;
+        }
+        
+        .auto-save-status.saving {
+            background: rgba(255, 193, 7, 0.1);
+            border-color: rgba(255, 193, 7, 0.3);
+            color: #856404;
+        }
+        
+        .data-storage-info {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .storage-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .storage-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 3px solid #007bff;
+        }
+        
+        .storage-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        
+        .storage-label {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+            
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-shield-alt"></i> Sistem Keamanan Deteksi Wajah</h1>
+            <p class="subtitle">Teknologi AI dengan Auto-Save dan Penghitungan Real-time</p>
+        </header>
+
+        <!-- Alert Panel -->
+        <div class="alert-panel" id="alertPanel">
+            <div class="alert-text">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span id="alertMessage">Wajah tidak dikenal terdeteksi!</span>
+            </div>
+            <div class="alert-time" id="alertTime"></div>
+        </div>
+
+        <div class="main-grid">
+            <!-- Video Section -->
+            <div class="video-section">
+                <div class="video-frame">
+                    <div class="video-placeholder">
+                        <i class="fas fa-video" style="margin-right: 10px;"></i>
+                        Simulasi Kamera Keamanan
+                    </div>
+                    <div class="status-indicator">
+                        <i class="fas fa-video"></i> LIVE
+                    </div>
+                    <div class="detection-overlay" id="detectionInfo">
+                        <i class="fas fa-eye"></i> Memantau...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Panel -->
+            <div class="realtime-panel">
+                <!-- Real-time Statistics -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-line"></i> Statistik Real-time</h2>
+                    <div class="stat-grid">
+                        <div class="stat-card">
+                            <span class="stat-number" id="knownCount">0</span>
+                            <span class="stat-label">
+                                <i class="fas fa-user-check"></i> Dikenal
+                            </span>
+                        </div>
+                        <div class="stat-card unknown">
+                            <span class="stat-number" id="unknownCount">0</span>
+                            <span class="stat-label">
+                                <i class="fas fa-user-times"></i> Tidak Dikenal
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <!-- Auto-Save Status -->
+                    <div class="auto-save-status" id="autoSaveStatus">
+                        <i class="fas fa-check-circle"></i> Auto-Save Aktif
+                        <div style="font-size: 0.9em; margin-top: 5px;">
+                            Data otomatis tersimpan setiap deteksi
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unknown Faces Gallery -->
+                <div class="card">
+                    <h2><i class="fas fa-camera"></i> Wajah Tidak Dikenal</h2>
+                    <div class="unknown-faces-grid" id="unknownFacesGrid">
+                        <!-- Unknown faces will be populated here -->
+                    </div>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button class="btn btn-danger" onclick="clearUnknownFaces()">
+                            <i class="fas fa-trash"></i> Hapus Semua
+                        </button>
+                        <button class="btn btn-warning" onclick="downloadUnknownData()">
+                            <i class="fas fa-download"></i> Download Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card">
+            <h2><i class="fas fa-history"></i> Log Aktivitas</h2>
+            <div class="activity-log" id="activityLog">
+                <!-- Activity entries will be populated here -->
+            </div>
+        </div>
+
+        <!-- Data Storage Information -->
+        <div class="card">
+            <h2><i class="fas fa-database"></i> Informasi Penyimpanan Data</h2>
+            <div class="data-storage-info">
+                <strong>Status Auto-Save:</strong> Data wajah tidak dikenal otomatis disimpan setiap terdeteksi
+                <div class="storage-stats">
+                    <div class="storage-item">
+                        <div class="storage-number" id="totalSavedFaces">0</div>
+                        <div class="storage-label">Total Tersimpan</div>
+                    </div>
+                    <div class="storage-item">
+                        <div class="storage-number" id="todayDetections">0</div>
+                        <div class="storage-label">Hari Ini</div>
+                    </div>
+                    <div class="storage-item">
+                        <div class="storage-number" id="storageSize">0 KB</div>
+                        <div class="storage-label">Ukuran Data</div>
+                    </div>
+                    <div class="storage-item">
+                        <div class="storage-number" id="lastSaveTime">-</div>
+                        <div class="storage-label">Terakhir Disimpan</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="card">
+            <h2><i class="fas fa-cogs"></i> Kontrol Sistem</h2>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="btn btn-success" onclick="startDetection()">
+                    <i class="fas fa-play"></i> Mulai Deteksi
+                </button>
+                <button class="btn btn-danger" onclick="stopDetection()">
+                    <i class="fas fa-stop"></i> Hentikan Deteksi
+                </button>
+                <button class="btn btn-primary" onclick="exportAllData()">
+                    <i class="fas fa-file-export"></i> Export Semua Data
+                </button>
+                <button class="btn btn-warning" onclick="clearAllData()">
+                    <i class="fas fa-broom"></i> Bersihkan Data
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sistem penghitungan dan penyimpanan otomatis
+        class FaceDetectionSystem {
+            constructor() {
+                this.knownFaces = 0;
+                this.unknownFaces = 0;
+                this.unknownFaceData = [];
+                this.activityHistory = [];
+                this.isDetectionActive = false;
+                this.detectionInterval = null;
+                this.storageKey = 'faceDetectionData';
+                this.todayDetections = 0;
+                this.totalSavedFaces = 0;
+                
+                this.loadStoredData();
+                this.updateDisplay();
+            }
+
+            // Memuat data yang tersimpan
+            loadStoredData() {
+                try {
+                    const stored = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+                    this.unknownFaceData = stored.unknownFaces || [];
+                    this.activityHistory = stored.activityLog || [];
+                    this.totalSavedFaces = stored.totalSaved || 0;
+                    
+                    // Hitung deteksi hari ini
+                    const today = new Date().toDateString();
+                    this.todayDetections = this.unknownFaceData.filter(face => 
+                        new Date(face.timestamp).toDateString() === today
+                    ).length;
+                    
+                    this.unknownFaces = this.unknownFaceData.length;
+                    this.addLog('system', 'Data tersimpan berhasil dimuat');
+                } catch (error) {
+                    console.error('Error loading stored data:', error);
+                    this.addLog('system', 'Error memuat data tersimpan');
+                }
+            }
+
+            // Menyimpan data otomatis
+            autoSaveData() {
+                try {
+                    const dataToSave = {
+                        unknownFaces: this.unknownFaceData,
+                        activityLog: this.activityHistory,
+                        totalSaved: this.totalSavedFaces,
+                        lastUpdate: new Date().toISOString()
+                    };
+                    
+                    // Update status saving
+                    this.updateSaveStatus('saving');
+                    
+                    // Simulasi delay penyimpanan
+                    setTimeout(() => {
+                        localStorage.setItem(this.storageKey, JSON.stringify(dataToSave));
+                        this.updateSaveStatus('saved');
+                        this.addLog('saved', 'Data otomatis tersimpan');
+                        this.updateStorageInfo();
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('Error saving data:', error);
+                    this.addLog('system', 'Error menyimpan data');
+                    this.updateSaveStatus('error');
+                }
+            }
+
+            // Update status penyimpanan
+            updateSaveStatus(status) {
+                const statusEl = document.getElementById('autoSaveStatus');
+                
+                switch(status) {
+                    case 'saving':
+                        statusEl.className = 'auto-save-status saving';
+                        statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyimpan data...';
+                        break;
+                    case 'saved':
+                        statusEl.className = 'auto-save-status';
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> Data berhasil disimpan<div style="font-size: 0.9em; margin-top: 5px;">Terakhir: ' + new Date().toLocaleTimeString('id-ID') + '</div>';
+                        break;
+                    case 'error':
+                        statusEl.className = 'auto-save-status';
+                        statusEl.style.background = 'rgba(220, 53, 69, 0.1)';
+                        statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error menyimpan data';
+                        break;
+                }
+            }
+
+            // Deteksi wajah dikenal
+            detectKnownFace() {
+                this.knownFaces++;
+                this.addLog('known', 'Wajah dikenal terdeteksi');
+                this.updateDetectionOverlay('Wajah dikenal terdeteksi', 'success');
+                this.updateDisplay();
+            }
+
+            // Deteksi wajah tidak dikenal
+            detectUnknownFace() {
+                const timestamp = new Date();
+                const faceData = {
+                    id: Date.now() + Math.random(),
+                    timestamp: timestamp.toISOString(),
+                    image: this.generateFaceImage(),
+                    confidence: (Math.random() * 0.4 + 0.6).toFixed(2),
+                    location: this.generateLocation(),
+                    saved: true
+                };
+                
+                // Tambah ke data wajah tidak dikenal
+                this.unknownFaceData.unshift(faceData);
+                this.unknownFaces++;
+                this.totalSavedFaces++;
+                
+                // Update deteksi hari ini
+                const today = new Date().toDateString();
+                if (timestamp.toDateString() === today) {
+                    this.todayDetections++;
+                }
+                
+                // Batasi jumlah data yang disimpan (misal 100 terakhir)
+                if (this.unknownFaceData.length > 100) {
+                    this.unknownFaceData = this.unknownFaceData.slice(0, 100);
+                }
+                
+                // Auto-save data
+                this.autoSaveData();
+                
+                // Update tampilan
+                this.updateDisplay();
+                this.updateUnknownFacesGrid();
+                this.addLog('unknown', `Wajah tidak dikenal terdeteksi dan disimpan (ID: ${faceData.id.toString().slice(-6)})`);
+                this.showAlert('Wajah tidak dikenal terdeteksi dan disimpan!', timestamp);
+                this.updateDetectionOverlay('Wajah tidak dikenal - Tersimpan!', 'danger');
+            }
+
+            // Generate simulasi gambar wajah
+            generateFaceImage() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 120;
+                canvas.height = 120;
+                const ctx = canvas.getContext('2d');
+                
+                // Background warna random
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
+                ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+                ctx.fillRect(0, 0, 120, 120);
+                
+                // Simulasi fitur wajah
+                ctx.fillStyle = '#333';
+                // Mata
+                ctx.fillRect(25, 35, 15, 15);
+                ctx.fillRect(80, 35, 15, 15);
+                // Hidung
+                ctx.fillRect(55, 60, 10, 20);
+                // Mulut
+                ctx.fillRect(40, 85, 40, 8);
+                
+                // Timestamp watermark
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.font = '10px Arial';
+                ctx.fillText(new Date().toLocaleTimeString('id-ID'), 5, 115);
+                
+                return canvas.toDataURL();
+            }
+
+            // Generate lokasi deteksi simulasi
+            generateLocation() {
+                const locations = [
+                    'Pintu Masuk Utama',
+                    'Lobby Kantor',
+                    'Ruang Meeting',
+                    'Parkiran',
+                    'Pintu Belak
